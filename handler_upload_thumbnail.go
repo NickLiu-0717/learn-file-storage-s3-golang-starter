@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -60,11 +62,17 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "Invalid file type", errors.New("need image/png or image/jpeg"))
 		return
 	}
-
-	filename := fmt.Sprintf("%s.%s", videoID, fileextention[1])
+	randid := make([]byte, 32)
+	_, err = rand.Read(randid)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Couldn't rand read", err)
+		return
+	}
+	fn := base64.RawURLEncoding.EncodeToString(randid)
+	filename := fmt.Sprintf("%s.%s", fn, fileextention[1])
 	dstfile, err := os.Create(filepath.Join(cfg.assetsRoot, filename))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Coundn't create file", err)
+		respondWithError(w, http.StatusBadRequest, "Couldn't create file", err)
 		return
 	}
 
@@ -84,6 +92,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "User ID doesn't match", err)
 		return
 	}
+
 	tURL := fmt.Sprintf("http://localhost:%v/assets/%v", cfg.port, filename)
 	video.ThumbnailURL = &tURL
 	err = cfg.db.UpdateVideo(video)

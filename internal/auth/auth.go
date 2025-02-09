@@ -114,3 +114,15 @@ func GetAPIKey(headers http.Header) (string, error) {
 
 	return splitAuth[1], nil
 }
+
+func MakeFileKey(fileextension string) (string, error) {
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert bytes to a hexadecimal string
+	hexString := hex.EncodeToString(bytes)
+	return hexString + "." + fileextension, nil
+}

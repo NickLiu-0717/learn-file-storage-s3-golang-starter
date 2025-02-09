@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 
 	"github.com/joho/godotenv"
@@ -21,10 +24,17 @@ type apiConfig struct {
 	s3Region         string
 	s3CfDistribution string
 	port             string
+	s3Client         *s3.Client
 }
 
 func main() {
 	godotenv.Load(".env")
+
+	s3cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatalf("unable to load SDK config: %v", err)
+	}
+	client := s3.NewFromConfig(s3cfg)
 
 	pathToDB := os.Getenv("DB_PATH")
 	if pathToDB == "" {
@@ -86,6 +96,7 @@ func main() {
 		s3Region:         s3Region,
 		s3CfDistribution: s3CfDistribution,
 		port:             port,
+		s3Client:         client,
 	}
 
 	err = cfg.ensureAssetsDir()
@@ -98,7 +109,7 @@ func main() {
 	mux.Handle("/app/", appHandler)
 
 	assetsHandler := http.StripPrefix("/assets", http.FileServer(http.Dir(assetsRoot)))
-	mux.Handle("/assets/", cacheMiddleware(assetsHandler))
+	mux.Handle("/assets/", noCacheMiddleware(assetsHandler))
 
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
 	mux.HandleFunc("POST /api/refresh", cfg.handlerRefresh)
